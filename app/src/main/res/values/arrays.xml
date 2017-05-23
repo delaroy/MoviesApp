@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources></resources>
+<resources>
+    <string-array name="pref_sort_order">
+        <item>@string/pref_most_popular</item>
+        <item>@string/pref_highest_rated</item>
+    </string-array>
+</resources>
