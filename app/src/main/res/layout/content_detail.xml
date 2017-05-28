@@ -46,7 +46,6 @@
                 android:id="@+id/userrating"
                 android:layout_marginLeft="@dimen/layout_margin_left"
                 android:padding="@dimen/padding_layout"
-                android:layout_marginTop="@dimen/layout_margin_top"
                 android:textSize="20sp"
                 app:layout_constraintTop_toBottomOf="@+id/title"
                 android:layout_marginStart="16dp"
@@ -59,7 +58,6 @@
                 android:id="@+id/releasedate"
                 android:layout_marginLeft="@dimen/layout_margin_left"
                 android:padding="@dimen/padding_layout"
-                android:layout_marginTop="@dimen/layout_margin_top"
                 android:textSize="20sp"
                 app:layout_constraintTop_toBottomOf="@+id/userrating"
                 app:layout_constraintLeft_toLeftOf="parent" />
@@ -70,7 +68,6 @@
                 android:id="@+id/plotsynopsis"
                 android:layout_marginLeft="@dimen/layout_margin_left"
                 android:padding="@dimen/padding_layout"
-                android:layout_marginTop="@dimen/layout_margin_top"
                 android:textSize="20sp"
                 app:layout_constraintTop_toBottomOf="@+id/releasedate"
                 app:layout_constraintLeft_toLeftOf="parent" />
@@ -79,6 +76,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:id="@+id/thumbnailUrl"
+                app:layout_constraintTop_toBottomOf="@+id/plotsynopsis"
+                app:layout_constraintLeft_toLeftOf="parent"
                 android:visibility="invisible"/>
 
             <TextView
@@ -89,6 +88,17 @@
                 android:text="@string/trailer"
                 app:layout_constraintTop_toBottomOf="@+id/plotsynopsis"
                 app:layout_constraintLeft_toLeftOf="parent"/>
+
+            <com.github.ivbaranov.mfb.MaterialFavoriteButton
+                android:id="@+id/favorite_button"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_alignParentRight="true"
+                app:layout_constraintRight_toLeftOf="@+id/userrating"
+                app:layout_constraintTop_toBottomOf="@+id/userrating"
+                app:layout_constraintBottom_toTopOf="@+id/userrating"
+                app:layout_constraintLeft_toRightOf="@+id/releasedate"
+                android:background="@color/colorPrimary"/>
 
             <android.support.v7.widget.RecyclerView
                 android:id="@+id/recycler_view1"
