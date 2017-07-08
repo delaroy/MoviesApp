@@ -46,6 +46,10 @@ public class DetailActivity extends AppCompatActivity {
     private Movie favorite;
     private final AppCompatActivity activity = DetailActivity.this;
 
+    Movie movie;
+    String thumbnail, movieName, synopsis, rating, dateOfRelease;
+    int movie_id;
+
     @Override
     public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
@@ -64,13 +68,16 @@ public class DetailActivity extends AppCompatActivity {
         releaseDate = (TextView) findViewById(R.id.releasedate);
 
         Intent intentThatStartedThisActivity = getIntent();
-        if (intentThatStartedThisActivity.hasExtra("original_title")){
+        if (intentThatStartedThisActivity.hasExtra("movies")){
 
-            String thumbnail = getIntent().getExtras().getString("poster_path");
-            String movieName = getIntent().getExtras().getString("original_title");
-            String synopsis = getIntent().getExtras().getString("overview");
-            String rating = getIntent().getExtras().getString("vote_average");
-            String dateOfRelease = getIntent().getExtras().getString("release_date");
+            movie = getIntent().getParcelableExtra("movies");
+
+            thumbnail = movie.getPosterPath();
+            movieName = movie.getOriginalTitle();
+            synopsis = movie.getOverview();
+            rating = Double.toString(movie.getVoteAverage());
+            dateOfRelease = movie.getReleaseDate();
+            movie_id = movie.getId();
 
             String poster = "https://image.tmdb.org/t/p/w500" + thumbnail;
 
@@ -166,7 +173,7 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void loadJSON(){
-        int movie_id = getIntent().getExtras().getInt("id");
+
         try{
             if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()){
                 Toast.makeText(getApplicationContext(), "Please obtain your API Key from themoviedb.org", Toast.LENGTH_SHORT).show();
@@ -200,15 +207,15 @@ public class DetailActivity extends AppCompatActivity {
     public void saveFavorite(){
         favoriteDbHelper = new FavoriteDbHelper(activity);
         favorite = new Movie();
-        int movie_id = getIntent().getExtras().getInt("id");
-        String rate = getIntent().getExtras().getString("vote_average");
-        String poster = getIntent().getExtras().getString("poster_path");
+
+        Double rate = movie.getVoteAverage();
+
 
         favorite.setId(movie_id);
-        favorite.setOriginalTitle(nameOfMovie.getText().toString().trim());
-        favorite.setPosterPath(poster);
-        favorite.setVoteAverage(Double.parseDouble(rate));
-        favorite.setOverview(plotSynopsis.getText().toString().trim());
+        favorite.setOriginalTitle(movieName);
+        favorite.setPosterPath(thumbnail);
+        favorite.setVoteAverage(rate);
+        favorite.setOverview(synopsis);
 
         favoriteDbHelper.addFavorite(favorite);
     }

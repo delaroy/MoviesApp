@@ -17,11 +17,13 @@ import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
 import com.delaroystudios.movieapp.adapter.MoviesAdapter;
+import com.delaroystudios.movieapp.adapter.TestAdapter;
 import com.delaroystudios.movieapp.api.Client;
 import com.delaroystudios.movieapp.api.Service;
 import com.delaroystudios.movieapp.data.FavoriteDbHelper;
@@ -29,6 +31,8 @@ import com.delaroystudios.movieapp.model.Movie;
 import com.delaroystudios.movieapp.model.MoviesResponse;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import retrofit2.Call;
@@ -54,6 +58,16 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         initViews();
 
+        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+
+        //For testing the recipe collection sorting alphabetically
+        TestAdapter testAdapter = new TestAdapter(LayoutInflater.from(this));
+        recyclerView.setAdapter(testAdapter);
+        testAdapter.setMovie(movieList);
+
+
+
+
     }
 
     public Activity getActivity(){
@@ -74,6 +88,8 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
         movieList = new ArrayList<>();
         adapter = new MoviesAdapter(this, movieList);
+
+
 
         if (getActivity().getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
             recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
@@ -138,11 +154,13 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 @Override
                 public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
                     List<Movie> movies = response.body().getResults();
+                    Collections.sort(movies, Movie.BY_NAME_ALPHABETICAL);
                     recyclerView.setAdapter(new MoviesAdapter(getApplicationContext(), movies));
                     recyclerView.smoothScrollToPosition(0);
                     if (swipeContainer.isRefreshing()){
                         swipeContainer.setRefreshing(false);
                     }
+
                 }
 
                 @Override
