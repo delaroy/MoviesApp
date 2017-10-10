@@ -59,10 +59,8 @@ public class DetailActivity extends AppCompatActivity {
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        initCollapsingToolbar();
-
         imageView = (ImageView) findViewById(R.id.thumbnail_image_header);
-        nameOfMovie = (TextView) findViewById(R.id.title);
+       // nameOfMovie = (TextView) findViewById(R.id.title);
         plotSynopsis = (TextView) findViewById(R.id.plotsynopsis);
         userRating = (TextView) findViewById(R.id.userrating);
         releaseDate = (TextView) findViewById(R.id.releasedate);
@@ -86,10 +84,13 @@ public class DetailActivity extends AppCompatActivity {
                     .placeholder(R.drawable.load)
                     .into(imageView);
 
-            nameOfMovie.setText(movieName);
+          //  nameOfMovie.setText(movieName);
             plotSynopsis.setText(synopsis);
             userRating.setText(rating);
             releaseDate.setText(dateOfRelease);
+
+       //TODO
+            ((CollapsingToolbarLayout) findViewById(R.id.collapsing_toolbar)).setTitle(movieName);
 
         }else{
             Toast.makeText(this, "No API Data", Toast.LENGTH_SHORT).show();
@@ -131,32 +132,6 @@ public class DetailActivity extends AppCompatActivity {
 
     }
 
-    private void initCollapsingToolbar(){
-        final CollapsingToolbarLayout collapsingToolbarLayout =
-                (CollapsingToolbarLayout) findViewById(R.id.collapsing_toolbar);
-        collapsingToolbarLayout.setTitle(" ");
-        AppBarLayout appBarLayout = (AppBarLayout) findViewById(R.id.appbar);
-        appBarLayout.setExpanded(true);
-
-        appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener(){
-            boolean isShow = false;
-            int scrollRange = -1;
-
-            @Override
-            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset){
-                if (scrollRange == -1){
-                    scrollRange = appBarLayout.getTotalScrollRange();
-                }
-                if (scrollRange + verticalOffset == 0){
-                    collapsingToolbarLayout.setTitle(getString(R.string.movie_details));
-                    isShow = true;
-                }else if (isShow){
-                    collapsingToolbarLayout.setTitle(" ");
-                    isShow = false;
-                }
-            }
-        });
-    }
 
     private void initViews(){
         trailerList = new ArrayList<>();
