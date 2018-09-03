@@ -13,4 +13,5 @@
     <string name="trailer">Trailer</string>
     <string name="favorite" translatable="false">Favorite Movies</string>
     <string name="share">Share</string>
+    <string name="review">Review</string>
 </resources>

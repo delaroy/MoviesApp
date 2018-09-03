@@ -27,15 +27,19 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.delaroystudios.movieapp.adapter.ReviewAdapter;
 import com.delaroystudios.movieapp.adapter.TrailerAdapter;
 import com.delaroystudios.movieapp.api.Client;
 import com.delaroystudios.movieapp.api.Service;
 import com.delaroystudios.movieapp.data.FavoriteContract;
 import com.delaroystudios.movieapp.data.FavoriteDbHelper;
 import com.delaroystudios.movieapp.model.Movie;
+import com.delaroystudios.movieapp.model.Review;
+import com.delaroystudios.movieapp.model.ReviewResult;
 import com.delaroystudios.movieapp.model.Trailer;
 import com.delaroystudios.movieapp.model.TrailerResponse;
 import com.github.ivbaranov.mfb.MaterialFavoriteButton;
+import com.takusemba.multisnaprecyclerview.MultiSnapRecyclerView;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -198,39 +202,87 @@ public class DetailActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
 
         loadJSON();
-
+        loadReview();
     }
 
     private void loadJSON(){
-
         try{
             if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()){
-                Toast.makeText(getApplicationContext(), "Please obtain your API Key from themoviedb.org", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "Please get your API Key", Toast.LENGTH_SHORT).show();
                 return;
+            }else {
+                Client Client = new Client();
+                Service apiService = Client.getClient().create(Service.class);
+                Call<TrailerResponse> call = apiService.getMovieTrailer(movie_id, BuildConfig.THE_MOVIE_DB_API_TOKEN);
+                call.enqueue(new Callback<TrailerResponse>() {
+                    @Override
+                    public void onResponse(Call<TrailerResponse> call, Response<TrailerResponse> response) {
+                        if (response.isSuccessful()) {
+                            if (response.body() != null) {
+                                List<Trailer> trailer = response.body().getResults();
+                                MultiSnapRecyclerView recyclerView = (MultiSnapRecyclerView) findViewById(R.id.recycler_view1);
+                                LinearLayoutManager firstManager = new LinearLayoutManager(getApplicationContext(), LinearLayoutManager.VERTICAL, false);
+                                recyclerView.setLayoutManager(firstManager);
+                                recyclerView.setAdapter(new TrailerAdapter(getApplicationContext(), trailer));
+                                recyclerView.smoothScrollToPosition(0);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<TrailerResponse> call, Throwable t) {
+                        Log.d("Error", t.getMessage());
+                        Toast.makeText(DetailActivity.this, "Error fetching trailer", Toast.LENGTH_SHORT).show();
+
+                    }
+                });
             }
-            Client Client = new Client();
-            Service apiService = Client.getClient().create(Service.class);
-            Call<TrailerResponse> call = apiService.getMovieTrailer(movie_id, BuildConfig.THE_MOVIE_DB_API_TOKEN);
-            call.enqueue(new Callback<TrailerResponse>() {
-                @Override
-                public void onResponse(Call<TrailerResponse> call, Response<TrailerResponse> response) {
-                    List<Trailer> trailer = response.body().getResults();
-                    recyclerView.setAdapter(new TrailerAdapter(getApplicationContext(), trailer));
-                    recyclerView.smoothScrollToPosition(0);
-                }
 
-                @Override
-                public void onFailure(Call<TrailerResponse> call, Throwable t) {
-                    Log.d("Error", t.getMessage());
-                    Toast.makeText(DetailActivity.this, "Error fetching trailer data", Toast.LENGTH_SHORT).show();
-
-                }
-            });
-
-        }catch (Exception e){
+        } catch(Exception e){
             Log.d("Error", e.getMessage());
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,e.toString(),Toast.LENGTH_SHORT).show();
         }
+    }
+
+
+    //TODO
+    private void loadReview(){
+        try {
+            if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()) {
+                Toast.makeText(getApplicationContext(), "Please get your API Key", Toast.LENGTH_SHORT).show();
+                return;
+            } else {
+                Client Client = new Client();
+                Service apiService = Client.getClient().create(Service.class);
+                Call<Review> call = apiService.getReview(movie_id, BuildConfig.THE_MOVIE_DB_API_TOKEN);
+
+                call.enqueue(new Callback<Review>() {
+                    @Override
+                    public void onResponse(Call<Review> call, Response<Review> response) {
+                        if (response.isSuccessful()){
+                            if (response.body() != null){
+                                List<ReviewResult> reviewResults = response.body().getResults();
+                                MultiSnapRecyclerView recyclerView2 = (MultiSnapRecyclerView) findViewById(R.id.review_recyclerview);
+                                LinearLayoutManager firstManager = new LinearLayoutManager(getApplicationContext(), LinearLayoutManager.VERTICAL, false);
+                                recyclerView2.setLayoutManager(firstManager);
+                                recyclerView2.setAdapter(new ReviewAdapter(getApplicationContext(), reviewResults));
+                                recyclerView2.smoothScrollToPosition(0);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Review> call, Throwable t) {
+
+                    }
+                });
+            }
+
+        } catch (Exception e) {
+            Log.d("Error", e.getMessage());
+            Toast.makeText(this, "unable to fetch data",Toast.LENGTH_SHORT).show();
+        }
+
     }
 
     public void saveFavorite(){

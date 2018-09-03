@@ -95,20 +95,43 @@
 
             <TextView
                 android:id="@+id/trailer"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="30sp"
-                android:text="@string/trailer"
-               />
+                android:layout_margin="16dp"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:layout_below="@+id/plotsynopsis"
+                android:text="@string/trailer" />
 
-
-            <android.support.v7.widget.RecyclerView
+            <com.takusemba.multisnaprecyclerview.MultiSnapRecyclerView
                 android:id="@+id/recycler_view1"
-                android:layout_width="368dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:scrollbars="vertical"
-                android:layout_below="@+id/plotsynopsis"/>
+                android:layout_gravity="center_vertical"
+                android:layout_below="@+id/trailer"
+                app:msrv_gravity="start"
+                app:msrv_ms_per_inch="@dimen/normal_speed"
+                app:msrv_snap_count="1" />
+
+            <TextView
+                android:id="@+id/text_review"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="16dp"
+                android:text="@string/review"
+                android:layout_below="@+id/recycler_view1"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <com.takusemba.multisnaprecyclerview.MultiSnapRecyclerView
+                android:id="@+id/review_recyclerview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_below="@id/text_review"
+                app:msrv_gravity="center"
+                app:msrv_ms_per_inch="@dimen/low_speed"
+                app:msrv_snap_count="2" />
         </RelativeLayout>
 
     </android.support.v4.widget.NestedScrollView>

@@ -1,6 +1,7 @@
 package com.delaroystudios.movieapp.api;
 
 import com.delaroystudios.movieapp.model.MoviesResponse;
+import com.delaroystudios.movieapp.model.Review;
 import com.delaroystudios.movieapp.model.TrailerResponse;
 
 import retrofit2.Call;
@@ -22,5 +23,9 @@ public interface Service {
 
     @GET("movie/{movie_id}/videos")
     Call<TrailerResponse> getMovieTrailer(@Path("movie_id") int id, @Query("api_key") String apiKey);
+
+    //Reviews
+    @GET("movie/{movie_id}/reviews")
+    Call<Review> getReview(@Path("movie_id") int id, @Query("api_key") String apiKey);
 
 }

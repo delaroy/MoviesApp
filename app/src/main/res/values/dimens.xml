@@ -14,4 +14,6 @@
     <dimen name="layout_margin_top">3dp</dimen>
     <dimen name="layout_margin_top2">10dp</dimen>
     <dimen name="padding_layout">16dp</dimen>
+    <item name="low_speed" type="dimen" format="float">120</item>
+    <item name="normal_speed" type="dimen" format="float">100</item>
 </resources>
