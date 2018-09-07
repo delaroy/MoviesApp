@@ -13,6 +13,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.delaroystudios.movieapp.DetailActivity;
 import com.delaroystudios.movieapp.R;
+import com.delaroystudios.movieapp.database.FavoriteEntry;
 import com.delaroystudios.movieapp.model.Movie;
 
 import java.util.List;

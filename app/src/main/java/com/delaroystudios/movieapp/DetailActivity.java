@@ -1,5 +1,6 @@
 package com.delaroystudios.movieapp;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -9,6 +10,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.design.widget.AppBarLayout;
@@ -27,12 +29,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.delaroystudios.movieapp.ViewModel.AppExecutors;
 import com.delaroystudios.movieapp.adapter.ReviewAdapter;
 import com.delaroystudios.movieapp.adapter.TrailerAdapter;
 import com.delaroystudios.movieapp.api.Client;
 import com.delaroystudios.movieapp.api.Service;
 import com.delaroystudios.movieapp.data.FavoriteContract;
 import com.delaroystudios.movieapp.data.FavoriteDbHelper;
+import com.delaroystudios.movieapp.database.AppDatabase;
+import com.delaroystudios.movieapp.database.FavoriteEntry;
 import com.delaroystudios.movieapp.model.Movie;
 import com.delaroystudios.movieapp.model.Review;
 import com.delaroystudios.movieapp.model.ReviewResult;
@@ -64,7 +69,9 @@ public class DetailActivity extends AppCompatActivity {
     private FavoriteDbHelper favoriteDbHelper;
     private Movie favorite;
     private final AppCompatActivity activity = DetailActivity.this;
-    private SQLiteDatabase mDb;
+    private AppDatabase mDb;
+    List<FavoriteEntry> entries = new ArrayList<>();
+    boolean exists;
 
     Movie movie;
     String thumbnail, movieName, synopsis, rating, dateOfRelease;
@@ -81,8 +88,7 @@ public class DetailActivity extends AppCompatActivity {
 
         //TODO
         FavoriteDbHelper dbHelper = new FavoriteDbHelper(this);
-        mDb = dbHelper.getWritableDatabase();
-
+        mDb = AppDatabase.getInstance(getApplicationContext());
 
         imageView = (ImageView) findViewById(R.id.thumbnail_image_header);
        // nameOfMovie = (TextView) findViewById(R.id.title);
@@ -121,75 +127,10 @@ public class DetailActivity extends AppCompatActivity {
             Toast.makeText(this, "No API Data", Toast.LENGTH_SHORT).show();
         }
 
-       MaterialFavoriteButton materialFavoriteButton = (MaterialFavoriteButton) findViewById(R.id.favorite_button);
-
-        if (Exists(movieName)){
-            materialFavoriteButton.setFavorite(true);
-            materialFavoriteButton.setOnFavoriteChangeListener(
-                    new MaterialFavoriteButton.OnFavoriteChangeListener() {
-                        @Override
-                        public void onFavoriteChanged(MaterialFavoriteButton buttonView, boolean favorite) {
-                            if (favorite == true) {
-                                saveFavorite();
-                                Snackbar.make(buttonView, "Added to Favorite",
-                                        Snackbar.LENGTH_SHORT).show();
-                            } else {
-                                favoriteDbHelper = new FavoriteDbHelper(DetailActivity.this);
-                                favoriteDbHelper.deleteFavorite(movie_id);
-                                Snackbar.make(buttonView, "Removed from Favorite",
-                                        Snackbar.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-
-
-        }else {
-            materialFavoriteButton.setOnFavoriteChangeListener(
-                    new MaterialFavoriteButton.OnFavoriteChangeListener() {
-                        @Override
-                        public void onFavoriteChanged(MaterialFavoriteButton buttonView, boolean favorite) {
-                            if (favorite == true) {
-                                saveFavorite();
-                                Snackbar.make(buttonView, "Added to Favorite",
-                                        Snackbar.LENGTH_SHORT).show();
-                            } else {
-                                int movie_id = getIntent().getExtras().getInt("id");
-                                favoriteDbHelper = new FavoriteDbHelper(DetailActivity.this);
-                                favoriteDbHelper.deleteFavorite(movie_id);
-                                Snackbar.make(buttonView, "Removed from Favorite",
-                                        Snackbar.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-
-
-        }
-
+        checkStatus(movieName);
         initViews();
 
     }
-
-    public boolean Exists(String searchItem) {
-
-        String[] projection = {
-                FavoriteContract.FavoriteEntry._ID,
-                FavoriteContract.FavoriteEntry.COLUMN_MOVIEID,
-                FavoriteContract.FavoriteEntry.COLUMN_TITLE,
-                FavoriteContract.FavoriteEntry.COLUMN_USERRATING,
-                FavoriteContract.FavoriteEntry.COLUMN_POSTER_PATH,
-                FavoriteContract.FavoriteEntry.COLUMN_PLOT_SYNOPSIS
-
-        };
-        String selection = FavoriteContract.FavoriteEntry.COLUMN_TITLE + " =?";
-        String[] selectionArgs = { searchItem };
-        String limit = "1";
-
-        Cursor cursor = mDb.query(FavoriteContract.FavoriteEntry.TABLE_NAME, projection, selection, selectionArgs, null, null, null, limit);
-        boolean exists = (cursor.getCount() > 0);
-        cursor.close();
-        return exists;
-    }
-
 
     private void initViews(){
         trailerList = new ArrayList<>();
@@ -286,19 +227,23 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     public void saveFavorite(){
-        favoriteDbHelper = new FavoriteDbHelper(activity);
-        favorite = new Movie();
-
         Double rate = movie.getVoteAverage();
+        final FavoriteEntry favoriteEntry = new FavoriteEntry(movie_id, movieName, rate, thumbnail, synopsis);
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                mDb.favoriteDao().insertFavorite(favoriteEntry);
+            }
+        });
+    }
 
-
-        favorite.setId(movie_id);
-        favorite.setOriginalTitle(movieName);
-        favorite.setPosterPath(thumbnail);
-        favorite.setVoteAverage(rate);
-        favorite.setOverview(synopsis);
-
-        favoriteDbHelper.addFavorite(favorite);
+    private void deleteFavorite(final int movie_id){
+        AppExecutors.getInstance().diskIO().execute(new Runnable() {
+            @Override
+            public void run() {
+                mDb.favoriteDao().deleteFavoriteWithId(movie_id);
+            }
+        });
     }
 
     @Override
@@ -356,5 +301,57 @@ public class DetailActivity extends AppCompatActivity {
         return returnedBitmap;
     }
 
+    @SuppressLint("StaticFieldLeak")
+    private void checkStatus(final String movieName){
+        final MaterialFavoriteButton materialFavoriteButton = (MaterialFavoriteButton) findViewById(R.id.favorite_button);
+        new AsyncTask<Void, Void, Void>(){
+            @Override
+            protected Void doInBackground(Void... params){
+                entries.clear();
+                entries = mDb.favoriteDao().loadAll(movieName);
+                return null;
+            }
+            @Override
+            protected void onPostExecute(Void aVoid){
+                super.onPostExecute(aVoid);
+                if (entries.size() > 0){
+                    materialFavoriteButton.setFavorite(true);
+                    materialFavoriteButton.setOnFavoriteChangeListener(
+                            new MaterialFavoriteButton.OnFavoriteChangeListener() {
+                                @Override
+                                public void onFavoriteChanged(MaterialFavoriteButton buttonView, boolean favorite) {
+                                    if (favorite == true) {
+                                        saveFavorite();
+                                        Snackbar.make(buttonView, "Added to Favorite",
+                                                Snackbar.LENGTH_SHORT).show();
+                                    } else {
+                                        deleteFavorite(movie_id);
+                                        Snackbar.make(buttonView, "Removed from Favorite",
+                                                Snackbar.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
 
+
+                }else {
+                    materialFavoriteButton.setOnFavoriteChangeListener(
+                            new MaterialFavoriteButton.OnFavoriteChangeListener() {
+                                @Override
+                                public void onFavoriteChanged(MaterialFavoriteButton buttonView, boolean favorite) {
+                                    if (favorite == true) {
+                                        saveFavorite();
+                                        Snackbar.make(buttonView, "Added to Favorite",
+                                                Snackbar.LENGTH_SHORT).show();
+                                    } else {
+                                        int movie_id = getIntent().getExtras().getInt("id");
+                                        deleteFavorite(movie_id);
+                                        Snackbar.make(buttonView, "Removed from Favorite",
+                                                Snackbar.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                }
+            }
+        }.execute();
+    }
 }
