@@ -2,6 +2,8 @@ package com.delaroystudios.movieapp;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -12,6 +14,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.support.annotation.Nullable;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -24,11 +27,13 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+import com.delaroystudios.movieapp.ViewModel.MainViewModel;
 import com.delaroystudios.movieapp.adapter.MoviesAdapter;
 import com.delaroystudios.movieapp.adapter.TestAdapter;
 import com.delaroystudios.movieapp.api.Client;
 import com.delaroystudios.movieapp.api.Service;
 import com.delaroystudios.movieapp.data.FavoriteDbHelper;
+import com.delaroystudios.movieapp.database.FavoriteEntry;
 import com.delaroystudios.movieapp.model.Movie;
 import com.delaroystudios.movieapp.model.MoviesResponse;
 
@@ -78,10 +83,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         TestAdapter testAdapter = new TestAdapter(LayoutInflater.from(this));
         recyclerView.setAdapter(testAdapter);
         testAdapter.setMovie(movieList);
-
-
-
-
     }
 
     public Activity getActivity(){
@@ -345,7 +346,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     }
 
     private void getAllFavorite(){
-        new AsyncTask<Void, Void, Void>(){
+    /*    new AsyncTask<Void, Void, Void>(){
             @Override
             protected Void doInBackground(Void... params){
                 movieList.clear();
@@ -357,6 +358,26 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 super.onPostExecute(aVoid);
                 adapter.notifyDataSetChanged();
             }
-        }.execute();
+        }.execute();*/
+
+        MainViewModel viewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        viewModel.getFavorite().observe(this, new Observer<List<FavoriteEntry>>() {
+            @Override
+            public void onChanged(@Nullable List<FavoriteEntry> imageEntries) {
+                List<Movie> movies = new ArrayList<>();
+                for (FavoriteEntry entry : imageEntries){
+                    Movie movie = new Movie();
+                    movie.setId(entry.getMovieid());
+                    movie.setOverview(entry.getOverview());
+                    movie.setOriginalTitle(entry.getTitle());
+                    movie.setPosterPath(entry.getPosterpath());
+                    movie.setVoteAverage(entry.getUserrating());
+
+                    movies.add(movie);
+                }
+
+                adapter.setMovies(movies);
+            }
+        });
     }
 }
