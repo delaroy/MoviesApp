@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="pref_sort_order">
+
+    <!-- List preference display values -->
+    <string-array name="pref_sortBy_entries">
         <item>@string/pref_most_popular</item>
         <item>@string/pref_highest_rated</item>
         <item>@string/favorite</item>
     </string-array>
+
+    <string-array name="pref_sortBy_values">
+        <item>@string/pref_most_popular</item>
+        <item>@string/pref_highest_rated</item>
+        <item>@string/favorite</item>
+    </string-array>
+
 </resources>

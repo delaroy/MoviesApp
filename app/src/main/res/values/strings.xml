@@ -14,4 +14,7 @@
     <string name="favorite" translatable="false">Favorite Movies</string>
     <string name="share">Share</string>
     <string name="review">Review</string>
+    <string name="pref_sortBy_title">Sort By:</string>
+    <string name="pref_summary">Choose an order to sort.</string>
+    <string name="pref_sortBy_key" translatable="false">sort</string>
 </resources>
