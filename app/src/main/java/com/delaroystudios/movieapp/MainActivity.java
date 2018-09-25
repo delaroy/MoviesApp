@@ -13,6 +13,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -57,17 +58,18 @@ import static android.R.attr.theme;
 import static android.R.attr.x;
 import static java.lang.System.in;
 
-public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
+public class MainActivity extends AppCompatActivity  {
 
     private RecyclerView recyclerView;
     private MoviesAdapter adapter;
-    private List<Movie> movieList;
     ProgressDialog pd;
-    private SwipeRefreshLayout swipeContainer;
-    private FavoriteDbHelper favoriteDbHelper;
     private AppCompatActivity activity = MainActivity.this;
     public static final String LOG_TAG = MoviesAdapter.class.getName();
-    int cacheSize = 10 * 1024 * 1024; // 10 MiB
+
+    private static String LIST_STATE = "list_state";
+    private Parcelable savedRecyclerLayoutState;
+    private static final String BUNDLE_RECYCLER_LAYOUT = "recycler_layout";
+    private ArrayList<Movie> moviesInstance = new ArrayList<>();
 
 
     @Override
@@ -75,15 +77,67 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        initViews();
-
-        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
-
-        //For testing the recipe collection sorting alphabetically
-        TestAdapter testAdapter = new TestAdapter(LayoutInflater.from(this));
-        recyclerView.setAdapter(testAdapter);
-        testAdapter.setMovie(movieList);
+        if (savedInstanceState != null){
+            moviesInstance = savedInstanceState.getParcelableArrayList(LIST_STATE);
+            savedRecyclerLayoutState = savedInstanceState.getParcelable(BUNDLE_RECYCLER_LAYOUT);
+            displayData();
+        }else {
+            initViews();
+        }
     }
+
+    private void displayData(){
+        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        adapter = new MoviesAdapter(this, moviesInstance);
+        if (getActivity().getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
+            recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        } else {
+            recyclerView.setLayoutManager(new GridLayoutManager(this, 4));
+        }
+        recyclerView.setItemAnimator(new DefaultItemAnimator());
+        recyclerView.setAdapter(adapter);
+        restoreLayoutManagerPosition();
+        adapter.notifyDataSetChanged();
+    }
+
+    private void restoreLayoutManagerPosition() {
+        if (savedRecyclerLayoutState != null) {
+            recyclerView.getLayoutManager().onRestoreInstanceState(savedRecyclerLayoutState);
+        }
+    }
+
+    private void initViews(){
+        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        if (getActivity().getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
+            recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        } else {
+            recyclerView.setLayoutManager(new GridLayoutManager(this, 4));
+        }
+
+        recyclerView.setItemAnimator(new DefaultItemAnimator());
+        recyclerView.setAdapter(adapter);
+        loadJSON();
+    }
+
+    private void initViews2(){
+        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        getAllFavorite();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        savedInstanceState.putParcelableArrayList(LIST_STATE, moviesInstance);
+        savedInstanceState.putParcelable(BUNDLE_RECYCLER_LAYOUT, recyclerView.getLayoutManager().onSaveInstanceState());
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        moviesInstance = savedInstanceState.getParcelableArrayList(LIST_STATE);
+        savedRecyclerLayoutState = savedInstanceState.getParcelable(BUNDLE_RECYCLER_LAYOUT);
+        super.onRestoreInstanceState(savedInstanceState);
+    }
+
 
     public Activity getActivity(){
         Context context = this;
@@ -97,59 +151,85 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
 
     }
 
-    private void initViews(){
+    private void loadJSON(){
+        String sortOrder = checkSortOrder();
 
-        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+        if (sortOrder.equals(this.getString(R.string.pref_most_popular))) {
 
-        movieList = new ArrayList<>();
-        adapter = new MoviesAdapter(this, movieList);
+            try {
+                if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Please obtain API Key firstly from themoviedb.org", Toast.LENGTH_SHORT).show();
+                    pd.dismiss();
+                    return;
+                }
 
+                Client Client = new Client();
+                Service apiService =
+                        Client.getClient().create(Service.class);
+                Call<MoviesResponse> call = apiService.getPopularMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
+                call.enqueue(new Callback<MoviesResponse>() {
+                    @Override
+                    public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
+                        if (response.isSuccessful()) {Toast.makeText(MainActivity.this, "the value is " + moviesInstance.size(), Toast.LENGTH_SHORT).show();
 
+                            if (response.body() != null) {
+                                List<Movie> movies = response.body().getResults();
+                                //moviesInstance.clear();
+                                moviesInstance.addAll(movies);
+                                recyclerView.setAdapter(new MoviesAdapter(getApplicationContext(), movies));
+                                recyclerView.smoothScrollToPosition(0);
+                            }
+                        }
+                    }
 
-        if (getActivity().getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-            recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
-        } else {
-            recyclerView.setLayoutManager(new GridLayoutManager(this, 4));
-        }
+                    @Override
+                    public void onFailure(Call<MoviesResponse> call, Throwable t) {
+                        Log.d("Error", t.getMessage());
+                        Toast.makeText(MainActivity.this, "Error Fetching Data!", Toast.LENGTH_SHORT).show();
 
-        recyclerView.setItemAnimator(new DefaultItemAnimator());
-        recyclerView.setAdapter(adapter);
-        adapter.notifyDataSetChanged();
-        favoriteDbHelper = new FavoriteDbHelper(activity);
-
-
-        swipeContainer = (SwipeRefreshLayout) findViewById(R.id.main_content);
-        swipeContainer.setColorSchemeResources(android.R.color.holo_orange_dark);
-        swipeContainer.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener(){
-            @Override
-            public void onRefresh(){
-                initViews();
-                Toast.makeText(MainActivity.this, "Movies Refreshed", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                Log.d("Error", e.getMessage());
+                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
             }
-        });
+        }else if (sortOrder.equals(this.getString(R.string.favorite))){
+            initViews2();
+        }else {
 
-        checkSortOrder();
+            try {
+                if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()) {
+                    Toast.makeText(getApplicationContext(), "Please obtain API Key firstly from themoviedb.org", Toast.LENGTH_SHORT).show();
+                    pd.dismiss();
+                    return;
+                }
 
-    }
+                Client Client = new Client();
+                Service apiService =
+                        Client.getClient().create(Service.class);
+                Call<MoviesResponse> call = apiService.getTopRatedMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
+                call.enqueue(new Callback<MoviesResponse>() {
+                    @Override
+                    public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
+                        List<Movie> movies = response.body().getResults();
+                        //moviesInstance.clear();
+                        moviesInstance.addAll(movies);
+                        recyclerView.setAdapter(new MoviesAdapter(getApplicationContext(), movies));
+                        recyclerView.smoothScrollToPosition(0);
+                    }
 
-    private void initViews2(){
-        recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+                    @Override
+                    public void onFailure(Call<MoviesResponse> call, Throwable t) {
+                        Log.d("Error", t.getMessage());
+                        Toast.makeText(MainActivity.this, "Error Fetching Data!", Toast.LENGTH_SHORT).show();
 
-        movieList = new ArrayList<>();
-        adapter = new MoviesAdapter(this, movieList);
-
-        if (getActivity().getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT){
-            recyclerView.setLayoutManager(new GridLayoutManager(this, 2));
-        } else {
-            recyclerView.setLayoutManager(new GridLayoutManager(this, 4));
+                    }
+                });
+            } catch (Exception e) {
+                Log.d("Error", e.getMessage());
+                Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
+            }
         }
-
-        recyclerView.setItemAnimator(new DefaultItemAnimator());
-        recyclerView.setAdapter(adapter);
-        adapter.notifyDataSetChanged();
-        favoriteDbHelper = new FavoriteDbHelper(activity);
-
-        getAllFavorite();
     }
 
     private boolean isNetworkAvailable() {
@@ -157,139 +237,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
-
-    private void loadJSON(){
-
-        try{
-            if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()){
-                Toast.makeText(getApplicationContext(), "Please obtain API Key firstly from themoviedb.org", Toast.LENGTH_SHORT).show();
-                pd.dismiss();
-                return;
-            }
-            Cache cache = new Cache(getCacheDir(), cacheSize);
-
-            OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                    .cache(cache)
-                    .addInterceptor(new Interceptor() {
-                        @Override
-                        public okhttp3.Response intercept(Interceptor.Chain chain)
-                                throws IOException {
-                            Request request = chain.request();
-                            if (!isNetworkAvailable()) {
-                                int maxStale = 60 * 60 * 24 * 28; // tolerate 4-weeks stale \
-                                request = request
-                                        .newBuilder()
-                                        .header("Cache-Control", "public, only-if-cached, max-stale=" + maxStale)
-                                        .build();
-                            }
-                            return chain.proceed(request);
-                        }
-                    })
-                    .build();
-
-            Retrofit.Builder builder = new Retrofit.Builder()
-                    .baseUrl("http://api.themoviedb.org/3/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create());
-
-            Retrofit retrofit = builder.build();
-            Service apiService = retrofit.create(Service.class);
-
-            //Client Client = new Client();
-            //Service apiService =
-                    //Client.getClient().create(Service.class);
-            Call<MoviesResponse> call = apiService.getPopularMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
-
-            call.enqueue(new Callback<MoviesResponse>() {
-                @Override
-                public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
-                    List<Movie> movies = response.body().getResults();
-                    Collections.sort(movies, Movie.BY_NAME_ALPHABETICAL);
-                    recyclerView.setAdapter(new MoviesAdapter(getApplicationContext(), movies));
-                    recyclerView.smoothScrollToPosition(0);
-                    if (swipeContainer.isRefreshing()){
-                        swipeContainer.setRefreshing(false);
-                    }
-
-                }
-
-                @Override
-                public void onFailure(Call<MoviesResponse> call, Throwable t) {
-                    Log.d("Error", t.getMessage());
-                    Toast.makeText(MainActivity.this, "Error Fetching Data!", Toast.LENGTH_SHORT).show();
-
-                }
-            });
-        }catch (Exception e){
-            Log.d("Error", e.getMessage());
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-
-    private void loadJSON1(){
-
-        try{
-            if (BuildConfig.THE_MOVIE_DB_API_TOKEN.isEmpty()){
-                Toast.makeText(getApplicationContext(), "Please obtain API Key firstly from themoviedb.org", Toast.LENGTH_SHORT).show();
-                pd.dismiss();
-                return;
-            }
-
-            Cache cache = new Cache(getCacheDir(), cacheSize);
-
-            OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                    .cache(cache)
-                    .addInterceptor(new Interceptor() {
-                        @Override public okhttp3.Response intercept(Interceptor.Chain chain)
-                                throws IOException {
-                            Request request = chain.request();
-                            if (!isNetworkAvailable()) {
-                                int maxStale = 60 * 60 * 24 * 28; // tolerate 4-weeks stale \
-                                request = request
-                                        .newBuilder()
-                                        .header("Cache-Control", "public, only-if-cached, max-stale=" + maxStale)
-                                                        .build();
-                            }
-                            return chain.proceed(request);
-                        }
-                    })
-                    .build();
-
-            Retrofit.Builder builder = new Retrofit.Builder()
-                    .baseUrl("http://api.themoviedb.org/3/")
-                    .client(okHttpClient)
-                    .addConverterFactory(GsonConverterFactory.create());
-
-            Retrofit retrofit = builder.build();
-            Service apiService = retrofit.create(Service.class);
-            //Client Client = new Client();
-            //Service apiService =
-                    //Client.getClient().create(Service.class);
-            Call<MoviesResponse> call = apiService.getTopRatedMovies(BuildConfig.THE_MOVIE_DB_API_TOKEN);
-            call.enqueue(new Callback<MoviesResponse>() {
-                @Override
-                public void onResponse(Call<MoviesResponse> call, Response<MoviesResponse> response) {
-                    List<Movie> movies = response.body().getResults();
-                    recyclerView.setAdapter(new MoviesAdapter(getApplicationContext(), movies));
-                    recyclerView.smoothScrollToPosition(0);
-                    if (swipeContainer.isRefreshing()){
-                        swipeContainer.setRefreshing(false);
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<MoviesResponse> call, Throwable t) {
-                    Log.d("Error", t.getMessage());
-                    Toast.makeText(MainActivity.this, "Error Fetching Data!", Toast.LENGTH_SHORT).show();
-
-                }
-            });
-        }catch (Exception e){
-            Log.d("Error", e.getMessage());
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
-        }
     }
 
     @Override
@@ -310,55 +257,17 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         }
     }
 
-    @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s){
-        Log.d(LOG_TAG, "Preferences updated");
-        checkSortOrder();
-    }
-
-    private void checkSortOrder(){
+    private String checkSortOrder(){
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         String sortOrder = preferences.getString(
                 this.getString(R.string.pref_sort_order_key),
                 this.getString(R.string.pref_most_popular)
         );
-        if (sortOrder.equals(this.getString(R.string.pref_most_popular))) {
-            Log.d(LOG_TAG, "Sorting by most popular");
-            loadJSON();
-        } else if (sortOrder.equals(this.getString(R.string.favorite))){
-            Log.d(LOG_TAG, "Sorting by favorite");
-            initViews2();
-        } else{
-            Log.d(LOG_TAG, "Sorting by vote average");
-            loadJSON1();
-        }
-    }
 
-    @Override
-    public void onResume(){
-        super.onResume();
-        if (movieList.isEmpty()){
-            checkSortOrder();
-        }else{
-
-            checkSortOrder();
-        }
+        return sortOrder;
     }
 
     private void getAllFavorite(){
-    /*    new AsyncTask<Void, Void, Void>(){
-            @Override
-            protected Void doInBackground(Void... params){
-                movieList.clear();
-                movieList.addAll(favoriteDbHelper.getAllFavorite());
-                return null;
-            }
-            @Override
-            protected void onPostExecute(Void aVoid){
-                super.onPostExecute(aVoid);
-                adapter.notifyDataSetChanged();
-            }
-        }.execute();*/
 
         MainViewModel viewModel = ViewModelProviders.of(this).get(MainViewModel.class);
         viewModel.getFavorite().observe(this, new Observer<List<FavoriteEntry>>() {
